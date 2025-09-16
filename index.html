@@ -415,6 +415,46 @@
                 });
             }
 
+            parseCSV(csvText) {
+                const rows = [];
+                const lines = csvText.split('\n');
+                
+                for (const line of lines) {
+                    if (line.trim() === '') continue; // Skip empty lines
+                    
+                    const row = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        
+                        if (char === '"') {
+                            if (inQuotes && line[i + 1] === '"') {
+                                // Escaped quote
+                                current += '"';
+                                i++; // Skip next quote
+                            } else {
+                                // Toggle quote state
+                                inQuotes = !inQuotes;
+                            }
+                        } else if (char === ',' && !inQuotes) {
+                            // End of field
+                            row.push(current);
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    
+                    // Add the last field
+                    row.push(current);
+                    rows.push(row);
+                }
+                
+                return rows;
+            }
+
             removeFile(index) {
                 this.files.splice(index, 1);
                 this.updateFileList();
@@ -455,9 +495,10 @@
                             let worksheet;
                             
                             if (fileExtension === 'csv') {
-                                // Handle CSV files
+                                // Handle CSV files - parse manually for Community Edition
                                 const csvText = await this.readFileAsText(file);
-                                worksheet = XLSX.utils.csv_to_sheet(csvText);
+                                const rows = this.parseCSV(csvText);
+                                worksheet = XLSX.utils.aoa_to_sheet(rows);
                             } else {
                                 // Handle Excel files
                                 const data = await this.readFileAsArrayBuffer(file);
