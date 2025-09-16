@@ -146,10 +146,10 @@
                         <div class="mb-3">
                             <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #007bff;"></i>
                         </div>
-                        <h5>Drag & Drop Excel Files Here</h5>
+                        <h5>Drag & Drop Excel & CSV Files Here</h5>
                         <p class="text-muted">or click to browse and select files</p>
-                        <p class="small text-muted">Supports .xlsx and .xls files (unlimited files, no size limit)</p>
-                        <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;" aria-label="Select Excel files">
+                        <p class="small text-muted">Supports .xlsx, .xls, and .csv files (unlimited files, no size limit)</p>
+                        <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv" style="display: none;" aria-label="Select Excel and CSV files">
                     </div>
                 </div>
             </div>
@@ -332,7 +332,7 @@
             validateFile(file) {
                 // Check file type only (no size limit)
                 const fileExtension = file.name.toLowerCase().split('.').pop();
-                if (!['xlsx', 'xls'].includes(fileExtension)) {
+                if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
                     return {
                         valid: false,
                         error: `${file.name} (invalid file type)`
@@ -377,11 +377,19 @@
                         return;
                     }
                     
-                    const data = await this.readFileAsArrayBuffer(file);
-                    const workbook = XLSX.read(data);
-                    const sheetCount = workbook.SheetNames.length;
+                    const fileExtension = file.name.toLowerCase().split('.').pop();
                     
-                    document.getElementById(`sheetCount-${index}`).textContent = `${sheetCount} sheet${sheetCount !== 1 ? 's' : ''}`;
+                    if (fileExtension === 'csv') {
+                        // CSV files are treated as single sheets
+                        document.getElementById(`sheetCount-${index}`).textContent = '1 sheet (CSV)';
+                    } else {
+                        // Excel files
+                        const data = await this.readFileAsArrayBuffer(file);
+                        const workbook = XLSX.read(data);
+                        const sheetCount = workbook.SheetNames.length;
+                        
+                        document.getElementById(`sheetCount-${index}`).textContent = `${sheetCount} sheet${sheetCount !== 1 ? 's' : ''}`;
+                    }
                 } catch (error) {
                     console.error('Error reading file:', error);
                     document.getElementById(`sheetCount-${index}`).textContent = 'Error';
@@ -395,6 +403,15 @@
                     reader.onload = (e) => resolve(e.target.result);
                     reader.onerror = (e) => reject(e);
                     reader.readAsArrayBuffer(file);
+                });
+            }
+
+            readFileAsText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsText(file);
                 });
             }
 
@@ -434,12 +451,22 @@
                         );
 
                         try {
-                            const data = await this.readFileAsArrayBuffer(file);
-                            const workbook = XLSX.read(data);
+                            const fileExtension = file.name.toLowerCase().split('.').pop();
+                            let worksheet;
                             
-                            // Get the first sheet (or create a default name if no sheets)
-                            const firstSheetName = workbook.SheetNames[0] || 'Sheet1';
-                            const worksheet = workbook.Sheets[firstSheetName];
+                            if (fileExtension === 'csv') {
+                                // Handle CSV files
+                                const csvText = await this.readFileAsText(file);
+                                worksheet = XLSX.utils.aoa_to_sheet(XLSX.utils.parse_csv(csvText));
+                            } else {
+                                // Handle Excel files
+                                const data = await this.readFileAsArrayBuffer(file);
+                                const workbook = XLSX.read(data);
+                                
+                                // Get the first sheet (or create a default name if no sheets)
+                                const firstSheetName = workbook.SheetNames[0] || 'Sheet1';
+                                worksheet = workbook.Sheets[firstSheetName];
+                            }
                             
                             if (worksheet) {
                                 // Create a new sheet name based on the filename
