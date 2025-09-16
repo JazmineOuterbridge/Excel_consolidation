@@ -51,7 +51,7 @@
 ### File Size Limits
 
 - **SharePoint**: No server-side file size limits (all processing is client-side)
-- **Browser**: Limited by browser memory (recommended max 5MB per file)
+- **Browser**: Limited by available browser memory (no artificial limits)
 - **Network**: Files never leave the user's device
 
 ## Troubleshooting SharePoint Issues
@@ -71,7 +71,7 @@
 3. **Files won't upload in the app**:
    - Check browser file picker permissions
    - Ensure files are .xlsx or .xls format
-   - Verify file size is under 5MB
+   - Verify sufficient browser memory for large files
 
 4. **Download doesn't work**:
    - Check browser pop-up blockers
@@ -92,8 +92,8 @@ If you're a SharePoint administrator, ensure:
 Before deploying to production:
 
 - [ ] Test with different Excel file formats (.xlsx, .xls)
-- [ ] Test with files of various sizes (up to 5MB)
-- [ ] Test with multiple files (up to 10)
+- [ ] Test with files of various sizes (no size limit)
+- [ ] Test with multiple files (unlimited)
 - [ ] Test download functionality
 - [ ] Test on different browsers
 - [ ] Test on mobile devices

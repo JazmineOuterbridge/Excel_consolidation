@@ -148,7 +148,7 @@
                         </div>
                         <h5>Drag & Drop Excel Files Here</h5>
                         <p class="text-muted">or click to browse and select files</p>
-                        <p class="small text-muted">Supports .xlsx and .xls files (up to 10 files, 5MB each)</p>
+                        <p class="small text-muted">Supports .xlsx and .xls files (unlimited files, no size limit)</p>
                         <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;" aria-label="Select Excel files">
                     </div>
                 </div>
@@ -232,8 +232,8 @@
                 
                 this.files = [];
                 this.processedFiles = [];
-                this.maxFiles = 10;
-                this.maxFileSize = 5 * 1024 * 1024; // 5MB
+                this.maxFiles = Infinity; // No limit
+                this.maxFileSize = Infinity; // No limit
                 this.allowedTypes = [
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     'application/vnd.ms-excel',
@@ -310,11 +310,7 @@
                     }
                 }
 
-                // Check total file limit
-                if (this.files.length + validFiles.length > this.maxFiles) {
-                    this.showAlert('error', `Maximum ${this.maxFiles} files allowed. Please remove some files first.`);
-                    return;
-                }
+                // No file limit check - unlimited files allowed
 
                 // Add valid files
                 this.files = this.files.concat(validFiles);
@@ -334,15 +330,7 @@
             }
 
             validateFile(file) {
-                // Check file size
-                if (file.size > this.maxFileSize) {
-                    return {
-                        valid: false,
-                        error: `${file.name} (file too large, max 5MB)`
-                    };
-                }
-
-                // Check file type
+                // Check file type only (no size limit)
                 const fileExtension = file.name.toLowerCase().split('.').pop();
                 if (!['xlsx', 'xls'].includes(fileExtension)) {
                     return {
