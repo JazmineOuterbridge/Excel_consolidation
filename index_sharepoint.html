@@ -142,7 +142,7 @@
                     <h5 class="mb-0">Step 1: Upload Excel Files</h5>
                 </div>
                 <div class="card-body">
-                    <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Drag and drop Excel files here or click to select files">
+                    <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Drag and drop Excel files here or click to select files" onclick="document.getElementById('fileInput').click()">
                         <div class="mb-3">
                             <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #007bff;"></i>
                         </div>
@@ -308,14 +308,32 @@
                 const fileInput = document.getElementById('fileInput');
                 const downloadBtn = document.getElementById('downloadBtn');
 
+                // Debug logging
+                console.log('Initializing event listeners...');
+                console.log('Upload zone found:', !!uploadZone);
+                console.log('File input found:', !!fileInput);
+
                 // Drag and drop events
                 uploadZone.addEventListener('dragover', this.handleDragOver.bind(this));
                 uploadZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
                 uploadZone.addEventListener('drop', this.handleDrop.bind(this));
-                uploadZone.addEventListener('click', () => fileInput.click());
+                
+                // Click event for file selection
+                uploadZone.addEventListener('click', (e) => {
+                    console.log('Upload zone clicked');
+                    e.preventDefault();
+                    if (fileInput) {
+                        console.log('Triggering file input click');
+                        fileInput.click();
+                    } else {
+                        console.error('File input not found');
+                    }
+                });
+                
                 uploadZone.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
+                        console.log('Keyboard trigger for file input');
                         fileInput.click();
                     }
                 });
@@ -325,6 +343,8 @@
 
                 // Download button
                 downloadBtn.addEventListener('click', this.downloadConsolidatedFile.bind(this));
+                
+                console.log('Event listeners initialized successfully');
             }
 
             handleDragOver(e) {
@@ -802,7 +822,16 @@
 
         // Initialize the consolidator when SheetJS is loaded
         function initializeApp() {
+            console.log('initializeApp() called');
+            console.log('XLSX available:', typeof XLSX !== 'undefined');
+            
+            if (typeof XLSX === 'undefined') {
+                console.error('XLSX not available when initializing app');
+                return;
+            }
+            
             consolidator = new ExcelConsolidator();
+            console.log('ExcelConsolidator created successfully');
             
             // Add process button after files are uploaded
             const fileListCard = document.getElementById('fileListCard');
