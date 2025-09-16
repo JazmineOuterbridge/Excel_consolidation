@@ -532,11 +532,15 @@
                 });
             }
 
-            parseCSV(csvText) {
+            async parseCSV(csvText) {
                 const rows = [];
                 const lines = csvText.split('\n');
+                const isLargeFile = lines.length > 50000; // More than 50k lines
                 
-                for (const line of lines) {
+                console.log(`Parsing CSV with ${lines.length} lines, isLarge: ${isLargeFile}`);
+                
+                for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                    const line = lines[lineIndex];
                     if (line.trim() === '') continue; // Skip empty lines
                     
                     const row = [];
@@ -567,8 +571,23 @@
                     // Add the last field
                     row.push(current);
                     rows.push(row);
+                    
+                    // Yield control every 1000 lines for large files
+                    if (isLargeFile && lineIndex % 1000 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                        
+                        // Update progress for very large files
+                        if (lineIndex % 10000 === 0) {
+                            const progress = (lineIndex / lines.length) * 100;
+                            this.updateProgress(
+                                progress,
+                                `Parsing CSV: ${lineIndex.toLocaleString()}/${lines.length.toLocaleString()} lines`
+                            );
+                        }
+                    }
                 }
                 
+                console.log(`Finished parsing CSV: ${rows.length} rows`);
                 return rows;
             }
 
@@ -622,6 +641,13 @@
                                 this.showAlert('warning', `File ${file.name} is too large (${this.formatFileSize(file.size)}). Skipping to prevent memory issues.`);
                                 continue;
                             }
+                            
+                            // Special handling for very large files (>100MB)
+                            if (file.size > 100 * 1024 * 1024) {
+                                this.showAlert('info', `Processing very large file: ${file.name} (${this.formatFileSize(file.size)}) - This may take several minutes...`);
+                                // Extra long yield for very large files
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                            }
 
                             totalSize += file.size;
                             if (totalSize > 500 * 1024 * 1024) { // 500MB total limit
@@ -642,7 +668,7 @@
                                     await new Promise(resolve => setTimeout(resolve, 200));
                                 }
                                 
-                                const rows = this.parseCSV(csvText);
+                                const rows = await this.parseCSV(csvText);
                                 
                                 // Process all CSV rows - no limit for large files
                                 if (rows.length > 10000) {
@@ -657,29 +683,45 @@
                                 
                                 // Yield before creating worksheet for large files
                                 if (rows.length > 50000) {
-                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                }
+                                
+                                // Chunked worksheet creation for very large datasets
+                                if (rows.length > 100000) {
+                                    this.showAlert('info', `Creating worksheet for ${rows.length.toLocaleString()} rows... This may take a few minutes.`);
+                                    await new Promise(resolve => setTimeout(resolve, 500));
                                 }
                                 
                                 worksheet = XLSX.utils.aoa_to_sheet(rows);
                                 
                                 // Yield after creating worksheet for large files
                                 if (rows.length > 50000) {
-                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                }
+                                
+                                if (rows.length > 100000) {
+                                    this.showAlert('info', `Worksheet created successfully for ${rows.length.toLocaleString()} rows.`);
                                 }
                             } else {
                                 // Handle Excel files
                                 const data = await this.readFileAsArrayBuffer(file);
                                 
                                 // Yield after reading large Excel file
-                                if (data.byteLength > 50 * 1024 * 1024) { // 50MB
+                                if (data.byteLength > 100 * 1024 * 1024) { // 100MB
+                                    this.showAlert('info', `Reading very large Excel file: ${file.name} (${(data.byteLength / 1024 / 1024).toFixed(1)}MB) - This may take several minutes...`);
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                } else if (data.byteLength > 50 * 1024 * 1024) { // 50MB
                                     this.showAlert('info', `Reading large Excel file: ${file.name} (${(data.byteLength / 1024 / 1024).toFixed(1)}MB)`);
                                     await new Promise(resolve => setTimeout(resolve, 200));
                                 }
                                 
+                                this.showAlert('info', `Parsing Excel file: ${file.name}...`);
                                 const workbook = XLSX.read(data);
                                 
                                 // Yield after parsing Excel file
-                                if (data.byteLength > 25 * 1024 * 1024) { // 25MB
+                                if (data.byteLength > 100 * 1024 * 1024) { // 100MB
+                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                } else if (data.byteLength > 25 * 1024 * 1024) { // 25MB
                                     await new Promise(resolve => setTimeout(resolve, 100));
                                 }
                                 
