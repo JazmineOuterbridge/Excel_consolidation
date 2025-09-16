@@ -672,7 +672,7 @@
                 return sheetName;
             }
 
-            downloadConsolidatedFile() {
+            async downloadConsolidatedFile() {
                 if (!this.processedWorkbook) {
                     this.showAlert('error', 'No consolidated file available. Please process files first.');
                     return;
