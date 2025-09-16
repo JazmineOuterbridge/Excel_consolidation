@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="robots" content="noindex, nofollow">
     <title>Excel File Consolidator</title>
     
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     
     <!-- Custom CSS -->
     <style>
@@ -188,17 +190,46 @@
     </div>
 
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
     
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" crossorigin="anonymous">
     
-    <!-- SheetJS Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.0/xlsx.full.min.js"></script>
+    <!-- SheetJS Library - Local Version -->
+    <script src="./xlsx.full.min.js"></script>
+    <script>
+        // Check if XLSX is loaded
+        if (typeof XLSX === 'undefined') {
+            console.error('SheetJS library failed to load locally. Trying CDN fallback...');
+            // Load CDN as fallback
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+            script.onload = function() {
+                console.log('SheetJS loaded from CDN fallback');
+                if (typeof XLSX !== 'undefined') {
+                    window.XLSX = XLSX;
+                }
+            };
+            script.onerror = function() {
+                console.error('Failed to load SheetJS from CDN fallback');
+                alert('Error: Unable to load Excel processing library. Please check your internet connection and refresh the page.');
+            };
+            document.head.appendChild(script);
+        } else {
+            console.log('SheetJS loaded successfully from local file');
+        }
+    </script>
 
     <script>
         class ExcelConsolidator {
             constructor() {
+                // Check if XLSX library is available
+                if (typeof XLSX === 'undefined') {
+                    console.error('XLSX library not loaded');
+                    this.showAlert('error', 'Excel processing library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
                 this.files = [];
                 this.processedFiles = [];
                 this.maxFiles = 10;
@@ -353,6 +384,11 @@
 
             async readFileSheets(file, index) {
                 try {
+                    if (typeof XLSX === 'undefined') {
+                        document.getElementById(`sheetCount-${index}`).textContent = 'Library not loaded';
+                        return;
+                    }
+                    
                     const data = await this.readFileAsArrayBuffer(file);
                     const workbook = XLSX.read(data);
                     const sheetCount = workbook.SheetNames.length;
@@ -385,6 +421,11 @@
             }
 
             async consolidateFiles() {
+                if (typeof XLSX === 'undefined') {
+                    this.showAlert('error', 'Excel processing library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
                 if (this.files.length === 0) {
                     this.showAlert('warning', 'Please upload at least one Excel file.');
                     return;
@@ -587,7 +628,10 @@
         // Initialize the consolidator when the page loads
         let consolidator;
         document.addEventListener('DOMContentLoaded', function() {
-            consolidator = new ExcelConsolidator();
+            // Wait a bit for libraries to load, then initialize
+            setTimeout(() => {
+                consolidator = new ExcelConsolidator();
+            }, 100);
             
             // Add process button after files are uploaded
             const fileListCard = document.getElementById('fileListCard');
@@ -616,26 +660,6 @@
             observer.observe(fileListCard, { attributes: true });
         });
 
-        // Testing instructions (for development)
-        /*
-        To test this application:
-        
-        1. Create sample Excel files with different content:
-           - File1.xlsx with data in Sheet1
-           - File2.xlsx with data in multiple sheets
-           - File3.xls (older format)
-        
-        2. Test drag and drop functionality by dragging files onto the upload zone
-        
-        3. Test file validation by trying to upload:
-           - Non-Excel files (.txt, .pdf)
-           - Files larger than 5MB
-           - More than 10 files
-        
-        4. Test the consolidation process and download functionality
-        
-        5. Verify that the downloaded file contains all sheets from uploaded files
-        */
     </script>
 </body>
 </html>

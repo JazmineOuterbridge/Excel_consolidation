@@ -1,7 +1,7 @@
-# Excel File Consolidator - SharePoint Deployment Guide
+# Excel File Consolidator - SharePoint Ready
 
 ## Overview
-This is a complete, self-contained web application that allows users to upload multiple Excel files (.xlsx/.xls) and consolidate them into a single workbook with separate sheets. The application runs entirely in the browser with no server-side processing required.
+This is a complete, self-contained web application designed for Microsoft SharePoint deployment. Users can upload multiple Excel files (.xlsx/.xls) and consolidate them into a single workbook with separate sheets. The application runs entirely in the browser with no server-side processing required.
 
 ## Features
 - **Drag & Drop Upload**: Intuitive file upload with visual feedback
@@ -13,28 +13,26 @@ This is a complete, self-contained web application that allows users to upload m
 - **Accessibility**: ARIA labels and keyboard navigation support
 - **Error Handling**: Comprehensive validation and user-friendly error messages
 
-## SharePoint Deployment Instructions
+## Quick SharePoint Deployment
 
-### Method 1: Upload to Document Library (Recommended)
+### Step 1: Upload Files
+1. **Go to your SharePoint site**
+2. **Navigate to a Document Library** (e.g., "Documents", "Site Assets")
+3. **Upload these files**:
+   - `index.html` (main application)
+   - `xlsx.full.min.js` (Excel processing library)
 
-1. **Access SharePoint Site**:
-   - Navigate to your SharePoint site
-   - Go to the Document Library where you want to host the app
+### Step 2: Set Permissions
+1. **Right-click on `index.html`**
+2. **Select "Share" or "Manage access"**
+3. **Add your users with "Read" permission**
 
-2. **Upload the File**:
-   - Click "Upload" → "Files"
-   - Select the `index.html` file
-   - Ensure it uploads successfully
+### Step 3: Access the App
+1. **Click on `index.html`** in the Document Library
+2. **The app opens in a new tab**
+3. **Start consolidating Excel files!**
 
-3. **Set Permissions**:
-   - Right-click the uploaded file
-   - Select "Manage access" or "Share"
-   - Set appropriate permissions for your users
-
-4. **Access the Application**:
-   - Click on the uploaded `index.html` file
-   - It will open in a new browser tab
-   - The application will be fully functional
+> 📋 **Detailed instructions**: See `SHAREPOINT_DEPLOYMENT.md` for comprehensive deployment guide
 
 ### Method 2: Embed in SharePoint Page
 
@@ -149,37 +147,31 @@ The application automatically generates sheet names based on filenames. To modif
    - Some SharePoint configurations block iframe embedding
    - Use direct file access instead of iframe
 
-## Testing
+## Usage
 
-### Test Scenarios
+### Basic Workflow
 
-1. **File Upload**:
-   - Drag and drop multiple Excel files
-   - Use file picker to select files
-   - Try uploading invalid file types
+1. **Upload Files**:
+   - Drag and drop Excel files onto the upload zone
+   - Or click the zone to browse and select files
+   - Supported formats: .xlsx and .xls files
 
-2. **File Processing**:
-   - Upload files with multiple sheets
-   - Upload large files (near 5MB limit)
-   - Upload maximum number of files (10)
+2. **Process Files**:
+   - Click "Consolidate Files" button
+   - Watch the progress bar as files are processed
+   - Each uploaded file becomes a separate sheet
 
-3. **Consolidation**:
-   - Process files with different formats
-   - Verify sheet names are generated correctly
-   - Check that data and formatting are preserved
+3. **Download Result**:
+   - Click "Download Consolidated Excel File"
+   - The browser will download a new .xlsx file
+   - Open it to verify all sheets are included
 
-4. **Download**:
-   - Verify downloaded file opens correctly
-   - Check that all sheets are present
-   - Confirm data integrity
+### File Requirements
 
-### Sample Test Files
-
-Create these test files for comprehensive testing:
-- `test1.xlsx` - Simple data in Sheet1
-- `test2.xlsx` - Multiple sheets with formulas
-- `test3.xls` - Legacy format file
-- `large_file.xlsx` - File near 5MB limit
+- **Format**: .xlsx or .xls files only
+- **Size**: Maximum 5MB per file
+- **Quantity**: Up to 10 files per session
+- **Content**: Each file's first sheet will be used
 
 ## Support
 
