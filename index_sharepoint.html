@@ -157,7 +157,7 @@
                         </div>
                         <h5>Drag & Drop Excel & CSV Files Here</h5>
                         <p class="text-muted">or click to browse and select files</p>
-                        <p class="small text-muted">Supports .xlsx, .xls, and .csv files (up to 50MB per file, 100MB total processing, unlimited CSV rows)</p>
+                        <p class="small text-muted">Supports .xlsx, .xls, and .csv files (up to 25MB per file, 50MB total processing, unlimited CSV rows)</p>
                         <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv" style="display: none;" aria-label="Select Excel and CSV files">
                     </div>
                 </div>
@@ -592,6 +592,120 @@
                 return range.e.r + 1;
             }
 
+            async splitAndDownloadWorkbook(workbook) {
+                const totalSheets = workbook.SheetNames.length;
+                const maxSheetsPerFile = 10; // Maximum 10 sheets per file
+                const maxRowsPerFile = 250000; // Maximum 250k rows per file
+                
+                this.showAlert('info', `Splitting workbook into multiple files (max ${maxSheetsPerFile} sheets, max ${maxRowsPerFile.toLocaleString()} rows per file)...`);
+                
+                const files = [];
+                let currentFileSheets = [];
+                let currentFileRows = 0;
+                let fileIndex = 1;
+                
+                for (let i = 0; i < totalSheets; i++) {
+                    const sheetName = workbook.SheetNames[i];
+                    const sheet = workbook.Sheets[sheetName];
+                    const sheetRows = this.getRowCount(sheet);
+                    
+                    // Check if adding this sheet would exceed limits
+                    if ((currentFileSheets.length >= maxSheetsPerFile) || 
+                        (currentFileRows + sheetRows > maxRowsPerFile && currentFileSheets.length > 0)) {
+                        
+                        // Create file with current sheets
+                        const splitWorkbook = XLSX.utils.book_new();
+                        for (const currentSheetName of currentFileSheets) {
+                            XLSX.utils.book_append_sheet(splitWorkbook, workbook.Sheets[currentSheetName], currentSheetName);
+                        }
+                        
+                        files.push({
+                            workbook: splitWorkbook,
+                            name: `Consolidated_Excel_Part${fileIndex}_${new Date().toISOString().split('T')[0]}.xlsx`,
+                            sheets: currentFileSheets.length,
+                            rows: currentFileRows
+                        });
+                        
+                        // Reset for next file
+                        currentFileSheets = [];
+                        currentFileRows = 0;
+                        fileIndex++;
+                        
+                        // Yield between files
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    
+                    currentFileSheets.push(sheetName);
+                    currentFileRows += sheetRows;
+                }
+                
+                // Add remaining sheets to final file
+                if (currentFileSheets.length > 0) {
+                    const splitWorkbook = XLSX.utils.book_new();
+                    for (const currentSheetName of currentFileSheets) {
+                        XLSX.utils.book_append_sheet(splitWorkbook, workbook.Sheets[currentSheetName], currentSheetName);
+                    }
+                    
+                    files.push({
+                        workbook: splitWorkbook,
+                        name: `Consolidated_Excel_Part${fileIndex}_${new Date().toISOString().split('T')[0]}.xlsx`,
+                        sheets: currentFileSheets.length,
+                        rows: currentFileRows
+                    });
+                }
+                
+                this.showAlert('info', `Created ${files.length} split files. Starting downloads...`);
+                
+                // Download each file
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    this.showAlert('info', `Downloading file ${i + 1}/${files.length}: ${file.name} (${file.sheets} sheets, ${file.rows.toLocaleString()} rows)`);
+                    
+                    try {
+                        await this.downloadSingleFile(file.workbook, file.name);
+                        
+                        // Yield between downloads
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                    } catch (error) {
+                        this.showAlert('error', `Failed to download ${file.name}: ${error.message}`);
+                    }
+                }
+                
+                this.showAlert('success', `Successfully downloaded ${files.length} split files!`);
+                return null; // No single buffer to return
+            }
+
+            async downloadSingleFile(workbook, filename) {
+                const options = {
+                    bookType: 'xlsx',
+                    type: 'array',
+                    cellStyles: false,
+                    compression: true,
+                    bookSST: false
+                };
+                
+                const buffer = XLSX.write(workbook, options);
+                
+                const blob = new Blob([buffer], { 
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                });
+                
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }, 1000);
+            }
+
             async generateExcelInChunks(workbook) {
                 // Check if workbook is too large to process safely
                 const totalSheets = workbook.SheetNames.length;
@@ -608,13 +722,15 @@
                 
                 this.showAlert('info', `Workbook contains ${totalSheets} sheets with approximately ${totalRows.toLocaleString()} total rows.`);
                 
-                // Hard limit check - prevent crashes
-                if (totalRows > 1000000) { // 1 million rows
-                    throw new Error(`Workbook too large (${totalRows.toLocaleString()} rows). Please reduce file size to prevent browser crash.`);
+                // Ultra-conservative hard limits to prevent crashes
+                if (totalRows > 500000) { // 500k rows (reduced from 1M)
+                    this.showAlert('warning', `Workbook too large (${totalRows.toLocaleString()} rows). Splitting into multiple files to prevent browser crash...`);
+                    return await this.splitAndDownloadWorkbook(workbook);
                 }
                 
-                if (totalSheets > 50) {
-                    throw new Error(`Too many sheets (${totalSheets}). Please reduce to 50 or fewer sheets to prevent browser crash.`);
+                if (totalSheets > 20) { // 20 sheets (reduced from 50)
+                    this.showAlert('warning', `Too many sheets (${totalSheets}). Splitting into multiple files to prevent browser crash...`);
+                    return await this.splitAndDownloadWorkbook(workbook);
                 }
                 
                 // For very large workbooks, use ultra-conservative approach
@@ -809,9 +925,9 @@
                         try {
                             // Yield control to prevent page freezing - increased delay for large files
                             await new Promise(resolve => setTimeout(resolve, 100));
-                            // Check file size to prevent memory issues (reduced limits to prevent crashes)
-                            if (file.size > 50 * 1024 * 1024) { // 50MB per file limit (reduced from 200MB)
-                                this.showAlert('warning', `File ${file.name} is too large (${this.formatFileSize(file.size)}). Skipping to prevent memory issues. Maximum safe size is 50MB per file.`);
+                            // Check file size to prevent memory issues (ultra-conservative limits)
+                            if (file.size > 25 * 1024 * 1024) { // 25MB per file limit (reduced from 50MB)
+                                this.showAlert('warning', `File ${file.name} is too large (${this.formatFileSize(file.size)}). Skipping to prevent memory issues. Maximum safe size is 25MB per file.`);
                                 continue;
                             }
                             
@@ -823,8 +939,8 @@
                             }
 
                             totalSize += file.size;
-                            if (totalSize > 100 * 1024 * 1024) { // 100MB total limit (reduced from 500MB)
-                                this.showAlert('warning', 'Total file size exceeds 100MB. Processing stopped to prevent memory issues.');
+                            if (totalSize > 50 * 1024 * 1024) { // 50MB total limit (reduced from 100MB)
+                                this.showAlert('warning', 'Total file size exceeds 50MB. Processing stopped to prevent memory issues.');
                                 break;
                             }
 
@@ -948,8 +1064,8 @@
                         this.updateStepIndicator();
                         this.showAlert('success', `Successfully consolidated ${processedCount} files!`);
                         
-                        // Auto-download after successful consolidation for small files only
-                        if (processedCount <= 3 && totalSize < 20 * 1024 * 1024) { // Auto-download if 3 or fewer files and under 20MB
+                        // Auto-download after successful consolidation for very small files only
+                        if (processedCount <= 2 && totalSize < 10 * 1024 * 1024) { // Auto-download if 2 or fewer files and under 10MB
                             this.showAlert('info', 'Auto-downloading consolidated file...');
                             setTimeout(() => {
                                 this.downloadConsolidatedFile();
@@ -1041,6 +1157,13 @@
                     let excelBuffer;
                     try {
                         excelBuffer = await this.generateExcelInChunks(this.processedWorkbook);
+                        
+                        // Check if split files were generated instead of a single buffer
+                        if (excelBuffer === null) {
+                            this.showAlert('success', 'Large file automatically split and downloaded as multiple files!');
+                            return; // Split files were already downloaded
+                        }
+                        
                     } catch (chunkError) {
                         console.warn('Chunked generation failed, trying standard method:', chunkError);
                         // Fallback to standard method with additional yielding
