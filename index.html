@@ -457,7 +457,7 @@
                             if (fileExtension === 'csv') {
                                 // Handle CSV files
                                 const csvText = await this.readFileAsText(file);
-                                worksheet = XLSX.utils.aoa_to_sheet(XLSX.utils.parse_csv(csvText));
+                                worksheet = XLSX.utils.csv_to_sheet(csvText);
                             } else {
                                 // Handle Excel files
                                 const data = await this.readFileAsArrayBuffer(file);
