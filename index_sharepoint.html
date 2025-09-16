@@ -197,6 +197,46 @@
     
     <!-- SheetJS Library - SharePoint Optimized -->
     <script>
+        // Define the initialization function first
+        function initializeApp() {
+            console.log('initializeApp() called');
+            console.log('XLSX available:', typeof XLSX !== 'undefined');
+            
+            if (typeof XLSX === 'undefined') {
+                console.error('XLSX not available when initializing app');
+                return;
+            }
+            
+            consolidator = new ExcelConsolidator();
+            console.log('ExcelConsolidator created successfully');
+            
+            // Add process button after files are uploaded
+            const fileListCard = document.getElementById('fileListCard');
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const isVisible = fileListCard.style.display !== 'none';
+                        if (isVisible && !document.getElementById('processBtn')) {
+                            const processBtn = document.createElement('div');
+                            processBtn.className = 'text-center mt-3';
+                            processBtn.innerHTML = `
+                                <button class="btn btn-primary btn-lg" id="processBtn">
+                                    <i class="bi bi-gear"></i> Consolidate Files
+                                </button>
+                            `;
+                            fileListCard.appendChild(processBtn);
+                            
+                            document.getElementById('processBtn').addEventListener('click', () => {
+                                consolidator.consolidateFiles();
+                            });
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(fileListCard, { attributes: true });
+        }
+
         // SharePoint-optimized SheetJS loading
         function loadSheetJS() {
             const currentPath = window.location.href;
@@ -820,45 +860,6 @@
             }
         }
 
-        // Initialize the consolidator when SheetJS is loaded
-        function initializeApp() {
-            console.log('initializeApp() called');
-            console.log('XLSX available:', typeof XLSX !== 'undefined');
-            
-            if (typeof XLSX === 'undefined') {
-                console.error('XLSX not available when initializing app');
-                return;
-            }
-            
-            consolidator = new ExcelConsolidator();
-            console.log('ExcelConsolidator created successfully');
-            
-            // Add process button after files are uploaded
-            const fileListCard = document.getElementById('fileListCard');
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                        const isVisible = fileListCard.style.display !== 'none';
-                        if (isVisible && !document.getElementById('processBtn')) {
-                            const processBtn = document.createElement('div');
-                            processBtn.className = 'text-center mt-3';
-                            processBtn.innerHTML = `
-                                <button class="btn btn-primary btn-lg" id="processBtn">
-                                    <i class="bi bi-gear"></i> Consolidate Files
-                                </button>
-                            `;
-                            fileListCard.appendChild(processBtn);
-                            
-                            document.getElementById('processBtn').addEventListener('click', () => {
-                                consolidator.consolidateFiles();
-                            });
-                        }
-                    }
-                });
-            });
-            
-            observer.observe(fileListCard, { attributes: true });
-        }
     </script>
 </body>
 </html>
