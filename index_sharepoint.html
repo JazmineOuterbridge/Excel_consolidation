@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Excel File Consolidator</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    
+    <!-- Custom CSS -->
+    <style>
+        .upload-zone {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-zone:hover {
+            border-color: #0056b3;
+            background-color: #e3f2fd;
+        }
+        
+        .upload-zone.dragover {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        
+        .file-item {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .file-item.error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        
+        .file-item.success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        
+        .progress-container {
+            display: none;
+        }
+        
+        .btn-download {
+            display: none;
+        }
+        
+        .alert-custom {
+            margin-top: 20px;
+        }
+        
+        .file-info {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .sheet-count {
+            background-color: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        
+        .step.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .step.completed {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- Header -->
+            <div class="header-section text-center">
+                <h1 class="mb-3">
+                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                    Excel File Consolidator
+                </h1>
+                <p class="lead mb-0">Upload multiple Excel files and consolidate them into a single workbook</p>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step" id="step2">2</div>
+                <div class="step" id="step3">3</div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Step 1: Upload Excel Files</h5>
+                </div>
+                <div class="card-body">
+                    <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Drag and drop Excel files here or click to select files">
+                        <div class="mb-3">
+                            <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #007bff;"></i>
+                        </div>
+                        <h5>Drag & Drop Excel Files Here</h5>
+                        <p class="text-muted">or click to browse and select files</p>
+                        <p class="small text-muted">Supports .xlsx and .xls files (unlimited files, no size limit)</p>
+                        <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;" aria-label="Select Excel files">
+                    </div>
+                </div>
+            </div>
+
+            <!-- File List -->
+            <div class="card mb-4" id="fileListCard" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0">Selected Files</h5>
+                </div>
+                <div class="card-body">
+                    <div id="fileList"></div>
+                </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-container card mb-4" id="progressContainer">
+                <div class="card-header">
+                    <h5 class="mb-0">Processing Files</h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progressBar"></div>
+                    </div>
+                    <p class="text-center mb-0" id="progressText">Ready to process...</p>
+                </div>
+            </div>
+
+            <!-- Download Section -->
+            <div class="text-center">
+                <button class="btn btn-success btn-lg btn-download" id="downloadBtn" style="display: none;">
+                    <i class="bi bi-download"></i> Download Consolidated Excel File
+                </button>
+            </div>
+
+            <!-- Alert Messages -->
+            <div id="alertContainer"></div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" crossorigin="anonymous">
+    
+    <!-- SheetJS Library - SharePoint Optimized -->
+    <script>
+        // SharePoint-optimized SheetJS loading
+        function loadSheetJS() {
+            const currentPath = window.location.href;
+            const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+            
+            // Try multiple possible locations for the xlsx file
+            const possiblePaths = [
+                './xlsx.full.min.js',                    // Same directory
+                basePath + 'xlsx.full.min.js',          // Same directory (explicit)
+                '../xlsx.full.min.js',                  // Parent directory
+                basePath + '../xlsx.full.min.js',       // Parent directory (explicit)
+                'xlsx.full.min.js'                      // Root relative
+            ];
+            
+            let currentPathIndex = 0;
+            
+            function tryNextPath() {
+                if (currentPathIndex >= possiblePaths.length) {
+                    console.error('All local paths failed. Trying CDN...');
+                    loadFromCDN();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = possiblePaths[currentPathIndex];
+                
+                script.onload = function() {
+                    if (typeof XLSX !== 'undefined') {
+                        console.log('SheetJS loaded from:', possiblePaths[currentPathIndex]);
+                        initializeApp();
+                    } else {
+                        console.error('XLSX not defined after loading:', possiblePaths[currentPathIndex]);
+                        currentPathIndex++;
+                        tryNextPath();
+                    }
+                };
+                
+                script.onerror = function() {
+                    console.error('Failed to load from:', possiblePaths[currentPathIndex]);
+                    currentPathIndex++;
+                    tryNextPath();
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            function loadFromCDN() {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+                script.onload = function() {
+                    if (typeof XLSX !== 'undefined') {
+                        console.log('SheetJS loaded from CDN');
+                        initializeApp();
+                    } else {
+                        showError('Excel processing library failed to load. Please ensure xlsx.full.min.js is uploaded to SharePoint.');
+                    }
+                };
+                script.onerror = function() {
+                    showError('Excel processing library failed to load. Please ensure xlsx.full.min.js is uploaded to SharePoint.');
+                };
+                document.head.appendChild(script);
+            }
+            
+            function showError(message) {
+                const alertContainer = document.getElementById('alertContainer');
+                alertContainer.innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show alert-custom" role="alert">
+                        <strong>Error:</strong> ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+            }
+            
+            tryNextPath();
+        }
+        
+        // Start loading SheetJS when page loads
+        document.addEventListener('DOMContentLoaded', loadSheetJS);
+    </script>
+
+    <script>
+        class ExcelConsolidator {
+            constructor() {
+                // Check if XLSX library is available
+                if (typeof XLSX === 'undefined') {
+                    console.error('XLSX library not loaded');
+                    this.showAlert('error', 'Excel processing library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                this.files = [];
+                this.processedFiles = [];
+                this.maxFiles = Infinity; // No limit
+                this.maxFileSize = Infinity; // No limit
+                this.allowedTypes = [
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.ms-excel',
+                    'application/excel',
+                    'application/x-excel',
+                    'application/x-msexcel'
+                ];
+                
+                this.initializeEventListeners();
+                this.updateStepIndicator();
+            }
+
+            initializeEventListeners() {
+                const uploadZone = document.getElementById('uploadZone');
+                const fileInput = document.getElementById('fileInput');
+                const downloadBtn = document.getElementById('downloadBtn');
+
+                // Drag and drop events
+                uploadZone.addEventListener('dragover', this.handleDragOver.bind(this));
+                uploadZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                uploadZone.addEventListener('drop', this.handleDrop.bind(this));
+                uploadZone.addEventListener('click', () => fileInput.click());
+                uploadZone.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        fileInput.click();
+                    }
+                });
+
+                // File input change
+                fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+
+                // Download button
+                downloadBtn.addEventListener('click', this.downloadConsolidatedFile.bind(this));
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                e.currentTarget.classList.add('dragover');
+            }
+
+            handleDragLeave(e) {
+                e.preventDefault();
+                e.currentTarget.classList.remove('dragover');
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                e.currentTarget.classList.remove('dragover');
+                
+                const files = Array.from(e.dataTransfer.files);
+                this.processFiles(files);
+            }
+
+            handleFileSelect(e) {
+                const files = Array.from(e.target.files);
+                this.processFiles(files);
+            }
+
+            processFiles(newFiles) {
+                // Reset file input
+                document.getElementById('fileInput').value = '';
+
+                // Validate files
+                const validFiles = [];
+                const errors = [];
+
+                for (const file of newFiles) {
+                    const validation = this.validateFile(file);
+                    if (validation.valid) {
+                        validFiles.push(file);
+                    } else {
+                        errors.push(validation.error);
+                    }
+                }
+
+                // No file limit check - unlimited files allowed
+
+                // Add valid files
+                this.files = this.files.concat(validFiles);
+
+                // Show errors if any
+                if (errors.length > 0) {
+                    this.showAlert('warning', `Some files were skipped: ${errors.join(', ')}`);
+                }
+
+                // Update UI
+                this.updateFileList();
+                this.updateStepIndicator();
+
+                if (this.files.length > 0) {
+                    document.getElementById('fileListCard').style.display = 'block';
+                }
+            }
+
+            validateFile(file) {
+                // Check file type only (no size limit)
+                const fileExtension = file.name.toLowerCase().split('.').pop();
+                if (!['xlsx', 'xls'].includes(fileExtension)) {
+                    return {
+                        valid: false,
+                        error: `${file.name} (invalid file type)`
+                    };
+                }
+
+                return { valid: true };
+            }
+
+            updateFileList() {
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                this.files.forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${file.name}</strong>
+                                <span class="file-info ms-2">(${this.formatFileSize(file.size)})</span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="sheet-count me-2" id="sheetCount-${index}">Loading...</span>
+                                <button class="btn btn-sm btn-outline-danger" onclick="consolidator.removeFile(${index})" aria-label="Remove ${file.name}">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    fileList.appendChild(fileItem);
+
+                    // Read file to get sheet count
+                    this.readFileSheets(file, index);
+                });
+            }
+
+            async readFileSheets(file, index) {
+                try {
+                    if (typeof XLSX === 'undefined') {
+                        document.getElementById(`sheetCount-${index}`).textContent = 'Library not loaded';
+                        return;
+                    }
+                    
+                    const data = await this.readFileAsArrayBuffer(file);
+                    const workbook = XLSX.read(data);
+                    const sheetCount = workbook.SheetNames.length;
+                    
+                    document.getElementById(`sheetCount-${index}`).textContent = `${sheetCount} sheet${sheetCount !== 1 ? 's' : ''}`;
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    document.getElementById(`sheetCount-${index}`).textContent = 'Error';
+                    document.querySelector(`#fileList .file-item:nth-child(${index + 1})`).classList.add('error');
+                }
+            }
+
+            readFileAsArrayBuffer(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            removeFile(index) {
+                this.files.splice(index, 1);
+                this.updateFileList();
+                this.updateStepIndicator();
+                
+                if (this.files.length === 0) {
+                    document.getElementById('fileListCard').style.display = 'none';
+                }
+            }
+
+            async consolidateFiles() {
+                if (typeof XLSX === 'undefined') {
+                    this.showAlert('error', 'Excel processing library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                if (this.files.length === 0) {
+                    this.showAlert('warning', 'Please upload at least one Excel file.');
+                    return;
+                }
+
+                this.showProgress(true);
+                this.updateProgress(0, 'Starting consolidation...');
+
+                try {
+                    const consolidatedWorkbook = XLSX.utils.book_new();
+                    let processedCount = 0;
+
+                    for (let i = 0; i < this.files.length; i++) {
+                        const file = this.files[i];
+                        this.updateProgress(
+                            (i / this.files.length) * 100,
+                            `Processing ${file.name}...`
+                        );
+
+                        try {
+                            const data = await this.readFileAsArrayBuffer(file);
+                            const workbook = XLSX.read(data);
+                            
+                            // Get the first sheet (or create a default name if no sheets)
+                            const firstSheetName = workbook.SheetNames[0] || 'Sheet1';
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            
+                            if (worksheet) {
+                                // Create a new sheet name based on the filename
+                                const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+                                const newSheetName = this.generateSheetName(fileName, consolidatedWorkbook);
+                                
+                                // Copy the worksheet to the consolidated workbook
+                                XLSX.utils.book_append_sheet(consolidatedWorkbook, worksheet, newSheetName);
+                                processedCount++;
+                            }
+                        } catch (error) {
+                            console.error(`Error processing ${file.name}:`, error);
+                            this.showAlert('warning', `Failed to process ${file.name}: ${error.message}`);
+                        }
+                    }
+
+                    this.updateProgress(100, 'Consolidation complete!');
+                    
+                    if (processedCount > 0) {
+                        this.processedWorkbook = consolidatedWorkbook;
+                        this.showDownloadButton();
+                        this.updateStepIndicator();
+                        this.showAlert('success', `Successfully consolidated ${processedCount} files!`);
+                    } else {
+                        this.showAlert('error', 'No files could be processed successfully.');
+                    }
+
+                } catch (error) {
+                    console.error('Consolidation error:', error);
+                    this.showAlert('error', `Consolidation failed: ${error.message}`);
+                } finally {
+                    this.showProgress(false);
+                }
+            }
+
+            generateSheetName(baseName, workbook) {
+                // Clean the name to be Excel sheet name compatible
+                let cleanName = baseName.replace(/[\\\/\?\*\[\]]/g, '_');
+                cleanName = cleanName.substring(0, 31); // Excel sheet name limit
+                
+                let sheetName = cleanName;
+                let counter = 1;
+                
+                // Check if name already exists and add counter if needed
+                while (workbook.SheetNames.includes(sheetName)) {
+                    sheetName = `${cleanName}_${counter}`;
+                    counter++;
+                }
+                
+                return sheetName;
+            }
+
+            downloadConsolidatedFile() {
+                if (!this.processedWorkbook) {
+                    this.showAlert('error', 'No consolidated file available. Please process files first.');
+                    return;
+                }
+
+                try {
+                    // Generate Excel file
+                    const excelBuffer = XLSX.write(this.processedWorkbook, { 
+                        bookType: 'xlsx', 
+                        type: 'array',
+                        cellStyles: true 
+                    });
+                    
+                    // Create blob and download
+                    const blob = new Blob([excelBuffer], { 
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                    });
+                    
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Consolidated_Excel_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    this.showAlert('success', 'File downloaded successfully!');
+                    
+                } catch (error) {
+                    console.error('Download error:', error);
+                    this.showAlert('error', `Download failed: ${error.message}`);
+                }
+            }
+
+            showProgress(show) {
+                const progressContainer = document.getElementById('progressContainer');
+                progressContainer.style.display = show ? 'block' : 'none';
+            }
+
+            updateProgress(percentage, text) {
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText');
+                
+                progressBar.style.width = `${percentage}%`;
+                progressBar.setAttribute('aria-valuenow', percentage);
+                progressText.textContent = text;
+            }
+
+            showDownloadButton() {
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+            }
+
+            updateStepIndicator() {
+                // Step 1: Upload files
+                const step1 = document.getElementById('step1');
+                if (this.files.length > 0) {
+                    step1.classList.remove('active');
+                    step1.classList.add('completed');
+                } else {
+                    step1.classList.remove('completed');
+                    step1.classList.add('active');
+                }
+
+                // Step 2: Process files
+                const step2 = document.getElementById('step2');
+                if (this.processedWorkbook) {
+                    step2.classList.remove('active');
+                    step2.classList.add('completed');
+                } else if (this.files.length > 0) {
+                    step2.classList.remove('completed');
+                    step2.classList.add('active');
+                } else {
+                    step2.classList.remove('active', 'completed');
+                }
+
+                // Step 3: Download
+                const step3 = document.getElementById('step3');
+                if (this.processedWorkbook) {
+                    step3.classList.remove('completed');
+                    step3.classList.add('active');
+                } else {
+                    step3.classList.remove('active', 'completed');
+                }
+            }
+
+            showAlert(type, message) {
+                const alertContainer = document.getElementById('alertContainer');
+                const alertId = `alert-${Date.now()}`;
+                
+                const alertHTML = `
+                    <div class="alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show alert-custom" id="${alertId}" role="alert">
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                
+                alertContainer.insertAdjacentHTML('beforeend', alertHTML);
+                
+                // Auto-dismiss after 5 seconds for success messages
+                if (type === 'success') {
+                    setTimeout(() => {
+                        const alert = document.getElementById(alertId);
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 5000);
+                }
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+
+        // Initialize the consolidator when SheetJS is loaded
+        function initializeApp() {
+            consolidator = new ExcelConsolidator();
+            
+            // Add process button after files are uploaded
+            const fileListCard = document.getElementById('fileListCard');
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const isVisible = fileListCard.style.display !== 'none';
+                        if (isVisible && !document.getElementById('processBtn')) {
+                            const processBtn = document.createElement('div');
+                            processBtn.className = 'text-center mt-3';
+                            processBtn.innerHTML = `
+                                <button class="btn btn-primary btn-lg" id="processBtn">
+                                    <i class="bi bi-gear"></i> Consolidate Files
+                                </button>
+                            `;
+                            fileListCard.appendChild(processBtn);
+                            
+                            document.getElementById('processBtn').addEventListener('click', () => {
+                                consolidator.consolidateFiles();
+                            });
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(fileListCard, { attributes: true });
+        }
+    </script>
+</body>
+</html>
