@@ -536,10 +536,18 @@
                 const rows = [];
                 const lines = csvText.split('\n');
                 const isLargeFile = lines.length > 50000; // More than 50k lines
+                const isVeryLargeFile = lines.length > 200000; // More than 200k lines
                 
-                console.log(`Parsing CSV with ${lines.length} lines, isLarge: ${isLargeFile}`);
+                console.log(`Parsing CSV with ${lines.length} lines, isLarge: ${isLargeFile}, isVeryLarge: ${isVeryLargeFile}`);
                 
-                for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                // For extremely large files, limit processing to prevent browser crashes
+                if (isVeryLargeFile) {
+                    this.showAlert('warning', `Very large CSV file detected (${lines.length.toLocaleString()} lines). Processing first 200,000 rows to prevent browser crash.`);
+                }
+                
+                const maxRows = isVeryLargeFile ? 200000 : lines.length;
+                
+                for (let lineIndex = 0; lineIndex < Math.min(lines.length, maxRows); lineIndex++) {
                     const line = lines[lineIndex];
                     if (line.trim() === '') continue; // Skip empty lines
                     
@@ -572,16 +580,18 @@
                     row.push(current);
                     rows.push(row);
                     
-                    // Yield control every 1000 lines for large files
-                    if (isLargeFile && lineIndex % 1000 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                    // Yield control every 500 lines for very large files, every 1000 for others
+                    const yieldInterval = rows.length > 100000 ? 500 : 1000;
+                    if (isLargeFile && lineIndex % yieldInterval === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Increased from 10ms to 50ms
                         
-                        // Update progress for very large files
-                        if (lineIndex % 10000 === 0) {
+                        // Update progress for very large files more frequently
+                        const progressInterval = rows.length > 100000 ? 5000 : 10000;
+                        if (lineIndex % progressInterval === 0) {
                             const progress = (lineIndex / lines.length) * 100;
                             this.updateProgress(
                                 progress,
-                                `Parsing CSV: ${lineIndex.toLocaleString()}/${lines.length.toLocaleString()} lines`
+                                `Parsing CSV: ${lineIndex.toLocaleString()}/${lines.length.toLocaleString()} lines (${progress.toFixed(1)}%)`
                             );
                         }
                     }
@@ -618,6 +628,12 @@
                 // Show that the page is responsive during processing
                 this.showAlert('info', 'Processing large files... The page will remain responsive during consolidation.');
                 
+                // Check for very large files and warn user
+                const veryLargeFiles = this.files.filter(f => f.size > 100 * 1024 * 1024);
+                if (veryLargeFiles.length > 0) {
+                    this.showAlert('warning', `Warning: ${veryLargeFiles.length} very large file(s) detected. Processing may take 10-30 minutes. Consider splitting files if processing fails.`);
+                }
+                
                 // Add a "keep alive" indicator to show the page is still responsive
                 this.startResponsivenessIndicator();
 
@@ -635,7 +651,7 @@
 
                         try {
                             // Yield control to prevent page freezing - increased delay for large files
-                            await new Promise(resolve => setTimeout(resolve, 50));
+                            await new Promise(resolve => setTimeout(resolve, 100));
                             // Check file size to prevent memory issues (increased limits for large files)
                             if (file.size > 200 * 1024 * 1024) { // 200MB per file limit
                                 this.showAlert('warning', `File ${file.name} is too large (${this.formatFileSize(file.size)}). Skipping to prevent memory issues.`);
@@ -786,7 +802,7 @@
                         document.getElementById('progressBar').style.width.replace('%', '') || 0,
                         `Processing... (Page responsive at ${now})`
                     );
-                }, 2000); // Update every 2 seconds
+                }, 1000); // Update every 1 second for better responsiveness
             }
 
             stopResponsivenessIndicator() {
