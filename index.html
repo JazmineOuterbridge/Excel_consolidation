@@ -208,6 +208,8 @@
                 console.log('SheetJS loaded from CDN fallback');
                 if (typeof XLSX !== 'undefined') {
                     window.XLSX = XLSX;
+                    // Initialize app after CDN fallback loads
+                    setTimeout(initializeApp, 50);
                 }
             };
             script.onerror = function() {
@@ -745,11 +747,24 @@
 
         // Initialize the consolidator when the page loads
         let consolidator;
+        
+        // Define the initialization function
+        function initializeApp() {
+            if (typeof XLSX === 'undefined') {
+                console.error('SheetJS not loaded yet, retrying...');
+                setTimeout(initializeApp, 100);
+                return;
+            }
+            
+            if (!consolidator) {
+                consolidator = new ExcelConsolidator();
+                console.log('Excel consolidator initialized successfully');
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Wait a bit for libraries to load, then initialize
-            setTimeout(() => {
-                consolidator = new ExcelConsolidator();
-            }, 100);
+            setTimeout(initializeApp, 100);
             
             // Add process button after files are uploaded
             const fileListCard = document.getElementById('fileListCard');
