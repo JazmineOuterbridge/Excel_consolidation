@@ -148,7 +148,7 @@
                         </div>
                         <h5>Drag & Drop Excel & CSV Files Here</h5>
                         <p class="text-muted">or click to browse and select files</p>
-                        <p class="small text-muted">Supports .xlsx, .xls, and .csv files (unlimited files, no size limit)</p>
+                        <p class="small text-muted">Supports .xlsx, .xls, and .csv files (up to 200MB per file, 500MB total processing, unlimited CSV rows)</p>
                         <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv" style="display: none;" aria-label="Select Excel and CSV files">
                     </div>
                 </div>
@@ -549,15 +549,15 @@
                         );
 
                         try {
-                            // Check file size to prevent memory issues
-                            if (file.size > 50 * 1024 * 1024) { // 50MB per file limit
+                            // Check file size to prevent memory issues (increased limits for large files)
+                            if (file.size > 200 * 1024 * 1024) { // 200MB per file limit
                                 this.showAlert('warning', `File ${file.name} is too large (${this.formatFileSize(file.size)}). Skipping to prevent memory issues.`);
                                 continue;
                             }
 
                             totalSize += file.size;
-                            if (totalSize > 200 * 1024 * 1024) { // 200MB total limit
-                                this.showAlert('warning', 'Total file size exceeds 200MB. Processing stopped to prevent memory issues.');
+                            if (totalSize > 500 * 1024 * 1024) { // 500MB total limit
+                                this.showAlert('warning', 'Total file size exceeds 500MB. Processing stopped to prevent memory issues.');
                                 break;
                             }
 
@@ -569,10 +569,9 @@
                                 const csvText = await this.readFileAsText(file);
                                 const rows = this.parseCSV(csvText);
                                 
-                                // Limit CSV rows to prevent memory issues
+                                // Process all CSV rows - no limit for large files
                                 if (rows.length > 10000) {
-                                    this.showAlert('warning', `CSV file ${file.name} has ${rows.length} rows. Limiting to first 10,000 rows.`);
-                                    rows.splice(10000);
+                                    this.showAlert('info', `Processing large CSV file: ${file.name} (${rows.length.toLocaleString()} rows)`);
                                 }
                                 
                                 worksheet = XLSX.utils.aoa_to_sheet(rows);
@@ -646,6 +645,10 @@
                 try {
                     this.showAlert('info', 'Generating download file... This may take a moment for large files.');
                     
+                    // Show progress for large file generation
+                    const fileCount = this.processedWorkbook.SheetNames.length;
+                    this.showAlert('info', `Processing ${fileCount} sheets. This may take several minutes for large files...`);
+                    
                     // Generate Excel file with optimized settings
                     const excelBuffer = XLSX.write(this.processedWorkbook, { 
                         bookType: 'xlsx', 
@@ -654,8 +657,8 @@
                         compression: true  // Enable compression
                     });
                     
-                    // Check if buffer is too large
-                    if (excelBuffer.length > 100 * 1024 * 1024) { // 100MB limit
+                    // Check if buffer is too large (increased for large files)
+                    if (excelBuffer.length > 300 * 1024 * 1024) { // 300MB limit
                         this.showAlert('error', 'File is too large to download. Please reduce the number of files or their size.');
                         return;
                     }

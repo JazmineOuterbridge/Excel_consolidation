@@ -5,7 +5,7 @@ This is a complete, self-contained web application designed for Microsoft ShareP
 
 ## Features
 - **Drag & Drop Upload**: Intuitive file upload with visual feedback
-- **File Validation**: Supports .xlsx, .xls, and .csv files (unlimited files, no size limit)
+- **File Validation**: Supports .xlsx, .xls, and .csv files (up to 200MB per file, 500MB total processing, unlimited CSV rows)
 - **Excel Processing**: Uses SheetJS library for robust Excel file handling
 - **Consolidation**: Creates new workbook with each uploaded file as a separate sheet
 - **Client-Side Only**: No data leaves the user's browser
@@ -169,8 +169,8 @@ The application automatically generates sheet names based on filenames. To modif
 ### File Requirements
 
 - **Format**: .xlsx, .xls, or .csv files
-- **Size**: No size limit
-- **Quantity**: Unlimited files per session
+- **Size**: Up to 200MB per file, 500MB total processing
+- **Quantity**: Unlimited files per session (within size limits)
 - **Content**: Each file's first sheet will be used
 
 ## Support
