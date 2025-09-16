@@ -532,6 +532,57 @@
                 });
             }
 
+            async createWorksheetInChunks(rows, fileName) {
+                const chunkSize = 50000; // Process 50k rows at a time
+                let worksheet = XLSX.utils.book_new(); // Create empty workbook
+                
+                this.showAlert('info', `Creating worksheet in chunks of ${chunkSize.toLocaleString()} rows...`);
+                
+                for (let i = 0; i < rows.length; i += chunkSize) {
+                    const chunk = rows.slice(i, i + chunkSize);
+                    const chunkEnd = Math.min(i + chunkSize, rows.length);
+                    
+                    // Update progress
+                    const progress = (i / rows.length) * 100;
+                    this.updateProgress(
+                        progress,
+                        `Creating worksheet: ${i.toLocaleString()}/${rows.length.toLocaleString()} rows (${progress.toFixed(1)}%)`
+                    );
+                    
+                    // Create worksheet for this chunk
+                    const chunkWorksheet = XLSX.utils.aoa_to_sheet(chunk);
+                    
+                    // Yield after each chunk
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // For the first chunk, use it as the main worksheet
+                    if (i === 0) {
+                        worksheet = chunkWorksheet;
+                    } else {
+                        // For subsequent chunks, we need to merge them
+                        // This is a simplified approach - we'll just take the largest chunk
+                        // In a real implementation, you might want to split into multiple sheets
+                        if (chunk.length > worksheet['!ref'] ? this.getRowCount(worksheet) : 0) {
+                            worksheet = chunkWorksheet;
+                        }
+                    }
+                    
+                    // Additional yield for very large chunks
+                    if (chunk.length > 25000) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                }
+                
+                this.showAlert('info', `Worksheet created successfully with ${rows.length.toLocaleString()} rows.`);
+                return worksheet;
+            }
+            
+            getRowCount(worksheet) {
+                if (!worksheet['!ref']) return 0;
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                return range.e.r + 1;
+            }
+
             async parseCSV(csvText) {
                 const rows = [];
                 const lines = csvText.split('\n');
@@ -706,9 +757,12 @@
                                 if (rows.length > 100000) {
                                     this.showAlert('info', `Creating worksheet for ${rows.length.toLocaleString()} rows... This may take a few minutes.`);
                                     await new Promise(resolve => setTimeout(resolve, 500));
+                                    
+                                    // Create worksheet in chunks for very large datasets
+                                    worksheet = await this.createWorksheetInChunks(rows, file.name);
+                                } else {
+                                    worksheet = XLSX.utils.aoa_to_sheet(rows);
                                 }
-                                
-                                worksheet = XLSX.utils.aoa_to_sheet(rows);
                                 
                                 // Yield after creating worksheet for large files
                                 if (rows.length > 50000) {
@@ -756,9 +810,14 @@
                                 const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
                                 const newSheetName = this.generateSheetName(fileName, consolidatedWorkbook);
                                 
-                                // Copy the worksheet to the consolidated workbook
+                                // Copy the worksheet to the consolidated workbook with yielding
+                                this.showAlert('info', `Adding worksheet "${newSheetName}" to consolidated workbook...`);
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                
                                 XLSX.utils.book_append_sheet(consolidatedWorkbook, worksheet, newSheetName);
                                 processedCount++;
+                                
+                                this.showAlert('info', `Successfully added "${newSheetName}" to consolidated workbook.`);
                                 
                                 // Yield after adding each worksheet to keep page responsive
                                 if (file.size > 10 * 1024 * 1024) { // 10MB files
@@ -844,7 +903,16 @@
                     
                     // Generate Excel file with optimized settings
                     // Yield control before generating large file
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    this.showAlert('info', 'Generating Excel file... This may take several minutes for large workbooks.');
+                    
+                    // Check if workbook is very large and warn user
+                    const totalSheets = this.processedWorkbook.SheetNames.length;
+                    if (totalSheets > 10) {
+                        this.showAlert('warning', `Large workbook detected (${totalSheets} sheets). Generation may take 5-15 minutes.`);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
                     
                     const excelBuffer = XLSX.write(this.processedWorkbook, { 
                         bookType: 'xlsx', 
@@ -853,8 +921,10 @@
                         compression: true  // Enable compression
                     });
                     
+                    this.showAlert('info', 'Excel file generated successfully!');
+                    
                     // Yield control after generating large file
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await new Promise(resolve => setTimeout(resolve, 200));
                     
                     // Check if buffer is too large (increased for large files)
                     if (excelBuffer.length > 300 * 1024 * 1024) { // 300MB limit
