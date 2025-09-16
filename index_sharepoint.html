@@ -535,6 +535,9 @@
 
                 this.showProgress(true);
                 this.updateProgress(0, 'Starting consolidation...');
+                
+                // Show that the page is responsive during processing
+                this.showAlert('info', 'Processing large files... The page will remain responsive during consolidation.');
 
                 try {
                     const consolidatedWorkbook = XLSX.utils.book_new();
@@ -549,6 +552,8 @@
                         );
 
                         try {
+                            // Yield control to prevent page freezing
+                            await new Promise(resolve => setTimeout(resolve, 10));
                             // Check file size to prevent memory issues (increased limits for large files)
                             if (file.size > 200 * 1024 * 1024) { // 200MB per file limit
                                 this.showAlert('warning', `File ${file.name} is too large (${this.formatFileSize(file.size)}). Skipping to prevent memory issues.`);
@@ -574,7 +579,18 @@
                                     this.showAlert('info', `Processing large CSV file: ${file.name} (${rows.length.toLocaleString()} rows)`);
                                 }
                                 
+                                // Additional yield for very large CSV files
+                                if (rows.length > 100000) {
+                                    this.showAlert('info', `Very large CSV file detected. Processing may take several minutes...`);
+                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                }
+                                
                                 worksheet = XLSX.utils.aoa_to_sheet(rows);
+                                
+                                // Yield after creating worksheet for large files
+                                if (rows.length > 50000) {
+                                    await new Promise(resolve => setTimeout(resolve, 50));
+                                }
                             } else {
                                 // Handle Excel files
                                 const data = await this.readFileAsArrayBuffer(file);
@@ -650,12 +666,18 @@
                     this.showAlert('info', `Processing ${fileCount} sheets. This may take several minutes for large files...`);
                     
                     // Generate Excel file with optimized settings
+                    // Yield control before generating large file
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
                     const excelBuffer = XLSX.write(this.processedWorkbook, { 
                         bookType: 'xlsx', 
                         type: 'array',
                         cellStyles: false,  // Disable styles to reduce size
                         compression: true  // Enable compression
                     });
+                    
+                    // Yield control after generating large file
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     
                     // Check if buffer is too large (increased for large files)
                     if (excelBuffer.length > 300 * 1024 * 1024) { // 300MB limit
